@@ -10,7 +10,7 @@ type: statement, function call, operator, literal, identifier, block,
 * assignment:   =, +=, -=, *=, /=
 * logical:      &, |
 * comparison:   ==, !=, <, <=, >, >=
-* unary:        +, -, !
+* unary:        +, -, ! ( maybe not be implemented ) :(   1 - x as 'not x'? add 'not' as a built-in
 * 
 * priority:     (, )
 * block:        {, }
