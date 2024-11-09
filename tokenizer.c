@@ -1,37 +1,31 @@
 # pragma once
+# ifndef TOKENIZER_H
+# define TOKENIZER_H
+# include <stdio.h>
 # include <stdlib.h>
+# include <string.h>
+
 # include "defs.h"
-# include "base.c"
 
-enum TokenType {
-    TokenNull, // used for state mark, don't use in real token
-    TokenWord, TokenNumber, TokenOperator, TokenLineSep,
-};
 
-struct Token {
-    enum TokenType tag;
-    char *token;
-};
-
-struct TokenData {
-    struct Token *tokens; // should end with TNull "\0", please push in the end.
-    int count;
-    int size; // using in malloc or reallocate
-    int error; // 0 for no err, 1 for grammar, 2 for invalid char, -1 for internal error
-    int index; // current index, pop
-};
-
+/// TokenData.constructor
 struct TokenData *Ts_create() {
     struct TokenData *tokens = malloc(sizeof(struct TokenData));
-    tokens->tokens = malloc(sizeof(struct Token) * INIT_TOKEN_COUNT);
+    void *new_memory = malloc(sizeof(struct Token) * INIT_TOKEN_COUNT);
+    if (!new_memory) {
+        panic("out of memory!", 1) // out of memory!!!
+    }
+    memset(new_memory, -1, sizeof(struct Token) * INIT_TOKEN_COUNT); // FIXME: for debug
+    tokens->tokens = new_memory;
     tokens->count = 0;
     tokens->size = INIT_TOKEN_COUNT;
-    tokens->error = 0;
+    tokens->error = Running;
     tokens->index = 0;
     return tokens;
 }
 
-void Ts_push(struct TokenData *tokens, const enum Tag tag, const char *const token, int token_len) {
+/// TokenData.push: push a token
+void Ts_push(struct TokenData *tokens, const enum DataTag tag, const char *const token, unsigned long token_len) {
     if (!tokens) {
         return;
     }
@@ -40,7 +34,11 @@ void Ts_push(struct TokenData *tokens, const enum Tag tag, const char *const tok
     }
     if (tokens->count >= tokens->size) {
         tokens->size *= 2;
-        tokens->tokens = realloc(tokens->tokens, sizeof(struct Token) * tokens->size);
+        void* new_memory = realloc(tokens->tokens, sizeof(struct Token) * tokens->size);
+        if (!new_memory) {
+            panic("out of memory!", 1);
+        }
+        tokens->tokens = new_memory;
     }
 
     tokens->tokens[tokens->count].tag = tag;
@@ -49,41 +47,54 @@ void Ts_push(struct TokenData *tokens, const enum Tag tag, const char *const tok
     tokens->count++;
 }
 
+/// TokenData.end: end the token list, submit
 void Ts_end(struct TokenData *tokens) {
     Ts_push(tokens, TokenNull, "", 1);
+    // it will never push then
+    // void* new_memory = realloc(tokens->tokens, sizeof(struct Token) * (tokens->count + 2));
+    // if (!new_memory) {
+    //     panic("out of memory!", 1);
+    // }
+    // tokens->tokens = new_memory;
+    if (tokens-> error == Running) {
+        tokens->error = Success;
+    }
 }
 
+/// TokenData.destructor
 void Ts_delete(struct TokenData *tokens) {
     free(tokens->tokens);
     free(tokens);
 }
 
+void Ts_refresh(struct TokenData *tokens) {
+    tokens->index = 0;
+    tokens->count = 0;
+    tokens->error = Running;
+}
+
+/// for parser. pop a token.
 struct Token Ts_pop(struct TokenData *tokens) {
     if (tokens->index >= tokens->count) {
-        tokens->error = -1; // internal error
-        assert(0); // should not happen, we had push a TokenNull in the end before
-    }
-    return tokens->tokens[tokens->index++];
-}
-
-struct Token Ts_peek(struct TokenData *tokens) {
-    if (tokens->index >= tokens->count) {
-        struct Token token;
-        token.tag = TokenNull;
-        token.token = "";
-        return token; // fuck, the parse_expression consumed the TokenNull, but we'd better keep this for further check
-    }
-    return tokens->tokens[tokens->index];
-}
-
-struct Token Ts_peek_next(struct TokenData *tokens) {
-    if (tokens->index + 1 >= tokens->count) {
+        tokens->error = UnexpectedEnd;
         struct Token token;
         token.tag = TokenNull;
         token.token = "";
         return token;
     }
-    return tokens->tokens[tokens->index + 1];
+    return tokens->tokens[tokens->index++];
+}
+
+/// for parser. peek a token for check, not increase the index.
+struct Token Ts_peek(struct TokenData *tokens) {
+    if (tokens->index >= tokens->count) {
+        tokens->error = UnexpectedEnd;
+        struct Token token;
+        token.tag = TokenNull;
+        token.token = "";
+        return token; // we'd better keep this for further check
+    }
+    return tokens->tokens[tokens->index];
 }
 
 void Ts_advance(struct TokenData *tokens) {
@@ -93,18 +104,18 @@ void Ts_advance(struct TokenData *tokens) {
 /**
  * Tokenize the source code
  *
+ * @param tokens the token data
  * @param src the source code, better with space between tokens, if not also OK
  * @return a list of tokens (ends with "\0")
  */
-struct TokenData *tokenize(const char *src) {
+void tokenize(struct TokenData *tokens, const char *src) {
     /// OK
     /// Passed test on 2024-11-06 22:07
     enum TokenType state = TokenNull;
     // Null for initial or blank, Word for word, Number for number, Operator for operator
 
-    struct TokenData *tokens = Ts_create();
     char *token = malloc(sizeof(char) * MAX_TOKEN_LEN); // assume never exceed MAX_TOKEN_LEN. what hell can be so long?
-    int token_len = 0;
+    unsigned long token_len = 0;
 #define PUSH_CHAR(c) token[token_len++] = c
 #define PUSH_TOKEN(tag) \
     if (token_len > 0){\
@@ -116,7 +127,7 @@ struct TokenData *tokenize(const char *src) {
 
     if (src == NULL || *src == '\0') {
         Ts_end(tokens);
-        return tokens;
+        return;
     }
     do {
         if (*src == ' ' || *src == '\t') {
@@ -124,7 +135,7 @@ struct TokenData *tokenize(const char *src) {
             state = TokenNull;
             continue;
         }
-        if (*src == ';') {
+        if (*src == '\n' || *src == '\r' || *src == ';') {
             PUSH_TOKEN(state);
             Ts_push(tokens, TokenLineSep, ";", 1);
             while (*src == '\n' || *src == '\r' || *src == ';') src++;
@@ -132,12 +143,12 @@ struct TokenData *tokenize(const char *src) {
             src--;
             continue;
         }
-        if (*src == '\n' || *src == '\r') {
-            PUSH_TOKEN(state);
-            state = TokenNull;
-            continue;
-        }
-        if (*src >= '0' && *src <= '9') {
+        // if (*src == '\n' || *src == '\r') {
+        //     PUSH_TOKEN(state);
+        //     state = TokenNull;
+        //     continue;
+        // }
+        if (*src >= '0' && *src <= '9' || *src == '.') {
             if (state == TokenOperator && token_len == 1 && (token[0] == '+' || token[0] == '-')) {
                 PUSH_CHAR(*src);
                 state = TokenNumber;
@@ -175,7 +186,7 @@ struct TokenData *tokenize(const char *src) {
                 state = TokenNull;
             } else {
                 if (state == TokenOperator) {
-                    tokens->error = 1; // grammar error. two operator in a row
+                    report_error(tokens->error, SyntaxError, "two operators in a row");
                     break;
                 }
                 PUSH_CHAR(*src);
@@ -193,13 +204,14 @@ struct TokenData *tokenize(const char *src) {
             continue;
         }
         if (*src != '\0') {
-            tokens->error = 2; // invalid character
+            report_error(tokens->error, InvalidChar, "invalid character");
             break;
         }
     } while (*++src != '\0');
     PUSH_TOKEN(state);
     Ts_end(tokens);
-    return tokens;
+    free(token);
 #undef PUSH_CHAR
 #undef PUSH_TOKEN
 }
+# endif
