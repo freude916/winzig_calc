@@ -1,0 +1,11 @@
+fa = 1;
+fb = 1;
+tmp = 0;
+i = 0;
+while (i<10) {
+    tmp = fa + fb;
+    print(tmp);
+    fa = fb;
+    fb = tmp;
+    i = i + 1;
+}

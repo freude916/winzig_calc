@@ -208,6 +208,7 @@ void tokenize(struct TokenData *tokens, const char *src) {
             break;
         }
     } while (*++src != '\0');
+    trace();
     PUSH_TOKEN(state);
     Ts_end(tokens);
     free(token);

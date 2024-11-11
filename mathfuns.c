@@ -4,7 +4,7 @@
 # include <math.h>
 
 long double my_print(struct Interpreter *interpreter, const long double x) {
-    return (long double) printf("%Lf", x);
+    return (long double) printf("%Lf\n", x);
 }
 
 long double my_input(struct Interpreter *interpreter, const long double _) {

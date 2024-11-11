@@ -218,7 +218,7 @@ int operator_priority(const char* op);
 void parse_file(struct Parser *parser, struct TokenData* tokens); // free tokens
 struct Block* parse_block(struct Parser *parser, struct TokenData* tokens); // read from { to } or GNull
 struct Statement* parse_statement(struct Parser *parser, struct TokenData* tokens); // read until TokenNewline
-struct Expression* parse_expression(struct Parser *parser, struct TokenData* tokens); // read until TokenNewline
+struct Expression* parse_expression(struct Parser *parser, struct TokenData* tokens, const int brace_flag); // read until TokenNewline
 // struct Expression* parse_brace(struct TokenData* tokens); // read from ( to )
 
 /// end of parser ------------------------------------------------------------------------------------

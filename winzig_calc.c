@@ -92,7 +92,7 @@ void winzig_file(struct WinzigCalc *calc, char* filename) {
         return;
     }
     char buf[65536];
-    fgets(buf, 65536, fp);
+    fread(buf, 1, 65536, fp);
     winzig_code(calc, buf);
 }
 

@@ -196,14 +196,17 @@ int operator_priority(const char *op) {
 }
 
 /// Parse an expression
-struct Expression *parse_expression(struct Parser *parser, struct TokenData *tokens) {
+/// @param parser: the parser object
+/// @param tokens: the token data
+/// @param brace_flag: 1 for ( expr ), 0 for whole line
+struct Expression *parse_expression(struct Parser *parser, struct TokenData *tokens, const int brace_flag) {
     struct Expression *exps[STACK_SIZE];
     int expr_top = 0;
     char ops[STACK_SIZE][3];
     int op_top = 0;
 
     int brace = 0;
-    int flag = 0; // use for if and while ( condition ), process until )
+    // use for if and while ( condition ), process until )
 
     struct Token token = Ts_pop(tokens);
 
@@ -241,9 +244,9 @@ struct Expression *parse_expression(struct Parser *parser, struct TokenData *tok
         result->tag = GNull;
         return result;
     }
-    if (token.tag == TokenOperator && token.token[0] == '(') {
-        flag = 1;
-    }
+    // if (token.tag == TokenOperator && token.token[0] == '(') {
+    //     brace_flag = 1;
+    // }
     while (token.tag != TokenNull && token.tag != TokenLineSep && tokens->error == Success) {
         if (token.tag == TokenNumber) {
             EPush(Literal_create(strtold(token.token, nullptr)));
@@ -251,7 +254,7 @@ struct Expression *parse_expression(struct Parser *parser, struct TokenData *tok
             // Tell if it is function call or variable
             if (*Ts_peek(tokens).token == '(') {
                 // a function call
-                struct Expression* expression = Builtin_create(token.token, parse_expression(parser, tokens));
+                struct Expression* expression = Builtin_create(token.token, parse_expression(parser, tokens, 1));
                 EPush(expression);
             } else {
                 // a variable
@@ -263,8 +266,9 @@ struct Expression *parse_expression(struct Parser *parser, struct TokenData *tok
             } else if (token.token[0] == ')') {
                 brace--;
                 while (op_top > 0 && ops[op_top][0] != '(') calc_once();
-                op_top--; // pop the (
-                if (flag && brace == 0) break;
+                // 1: at least one ( in stack
+                // op_top--; // wrong, didn't push (
+                if (brace_flag && brace == 0) break;
             } else {
                 while (op_top > 0 && operator_priority(ops[op_top - 1]) >= operator_priority(token.token)) calc_once();
                 OpPush(token.token);
@@ -281,6 +285,7 @@ struct Expression *parse_expression(struct Parser *parser, struct TokenData *tok
     } else {
         struct Expression *result = malloc(sizeof(struct Expression));
         result->tag = GError;
+        report_error(parser->error, SyntaxError, "didn't process all expressions");
         return result;
     }
 };
@@ -294,7 +299,7 @@ struct Statement *parse_statement(struct Parser *parser, struct TokenData *token
             Ts_pop(tokens);
             stmt->tag = GIf;
             stmt->if_stmt = malloc(sizeof(struct If));
-            stmt->if_stmt->cond = parse_expression(parser,tokens);
+            stmt->if_stmt->cond = parse_expression(parser,tokens, 1);
             stmt->if_stmt->then_block = parse_block(parser,tokens);
             const struct Token is_else = Ts_peek(tokens);
             if (is_else.tag == TokenWord && strstr(is_else.token, "else")) {
@@ -302,25 +307,28 @@ struct Statement *parse_statement(struct Parser *parser, struct TokenData *token
                 stmt->if_stmt->else_block = parse_block(parser,tokens);
             } else {
                 stmt->if_stmt->else_block = malloc(sizeof(struct Block));
-                stmt->if_stmt->else_block->stmts = malloc(sizeof(struct Statement));
+                stmt->if_stmt->else_block->stmts = malloc(sizeof(struct Statement *));
+                stmt->if_stmt->else_block->stmts[0] = malloc(sizeof(struct Statement));
                 stmt->if_stmt->else_block->stmts[0]->tag = GNull;
             }
             // consume the newline, make sure
         } else if (strstr(token.token, "while")) {
             Ts_pop(tokens);
             stmt->tag = GWhile;
-            stmt->while_stmt->cond = parse_expression(parser, tokens);
+            stmt->while_stmt = malloc(sizeof(struct While));
+            stmt->while_stmt->cond = parse_expression(parser, tokens, 1);
             stmt->while_stmt->block = parse_block(parser, tokens);
             // consume the newline, make sure
         } else {
             stmt->tag = GExpression;
-            stmt->expr = parse_expression(parser, tokens);
+            stmt->expr = parse_expression(parser, tokens, 0);
         }
     }else if (token.tag == TokenNumber){
         stmt->tag = GExpression;
-        stmt->expr = parse_expression(parser, tokens);
+        stmt->expr = parse_expression(parser, tokens, 0);
     }else if (token.tag == TokenOperator) {
-        panic("unreachable", 1);
+        stmt->tag = GExpression;
+        stmt->expr = parse_expression(parser, tokens, 0);
     }else if (token.tag == TokenNull) {
         stmt->tag = GNull;
     }
@@ -340,6 +348,10 @@ struct Block *parse_block(struct Parser *parser, struct TokenData *tokens) {
     if (token.tag == TokenOperator && token.token[0] == '{') {
         flag = 1;
         Ts_advance(tokens);
+        token = Ts_peek(tokens);
+        if (token.tag == TokenLineSep) {
+            Ts_advance(tokens);
+        }
         brace++;
     }
     // use for { block }, process until }
