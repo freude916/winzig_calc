@@ -15,7 +15,7 @@ struct TokenData *Ts_create() {
     if (!new_memory) {
         panic("out of memory!", 1) // out of memory!!!
     }
-    memset(new_memory, -1, sizeof(struct Token) * INIT_TOKEN_COUNT); // FIXME: for debug
+    memset(new_memory, -1, sizeof(struct Token) * INIT_TOKEN_COUNT); // DEBUG: fill with -1
     tokens->tokens = new_memory;
     tokens->count = 0;
     tokens->size = INIT_TOKEN_COUNT;
@@ -149,6 +149,10 @@ void tokenize(struct TokenData *tokens, const char *src) {
         //     continue;
         // }
         if (*src >= '0' && *src <= '9' || *src == '.') {
+            if (state == TokenWord) {
+                PUSH_CHAR(*src); // a word followed by a number, possible identifier name
+                continue;
+            }
             if (state == TokenOperator && token_len == 1 && (token[0] == '+' || token[0] == '-')) {
                 PUSH_CHAR(*src);
                 state = TokenNumber;

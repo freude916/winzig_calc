@@ -269,7 +269,9 @@ struct Expression *parse_expression(struct Parser *parser, struct TokenData *tok
                 // 1: at least one ( in stack
                 // op_top--; // wrong, didn't push (
                 if (brace_flag && brace == 0) break;
-            } else {
+            } else if  (token.token[0] == '}'){
+                break;
+            }else {
                 while (op_top > 0 && operator_priority(ops[op_top - 1]) >= operator_priority(token.token)) calc_once();
                 OpPush(token.token);
             }
@@ -300,11 +302,11 @@ struct Statement *parse_statement(struct Parser *parser, struct TokenData *token
             stmt->tag = GIf;
             stmt->if_stmt = malloc(sizeof(struct If));
             stmt->if_stmt->cond = parse_expression(parser,tokens, 1);
-            stmt->if_stmt->then_block = parse_block(parser,tokens);
+            stmt->if_stmt->then_block = parse_block(parser,tokens, 1);
             const struct Token is_else = Ts_peek(tokens);
             if (is_else.tag == TokenWord && strstr(is_else.token, "else")) {
                 Ts_advance(tokens);
-                stmt->if_stmt->else_block = parse_block(parser,tokens);
+                stmt->if_stmt->else_block = parse_block(parser,tokens, 1);
             } else {
                 stmt->if_stmt->else_block = malloc(sizeof(struct Block));
                 stmt->if_stmt->else_block->stmts = malloc(sizeof(struct Statement *));
@@ -317,7 +319,7 @@ struct Statement *parse_statement(struct Parser *parser, struct TokenData *token
             stmt->tag = GWhile;
             stmt->while_stmt = malloc(sizeof(struct While));
             stmt->while_stmt->cond = parse_expression(parser, tokens, 1);
-            stmt->while_stmt->block = parse_block(parser, tokens);
+            stmt->while_stmt->block = parse_block(parser, tokens, 1);
             // consume the newline, make sure
         } else {
             stmt->tag = GExpression;
@@ -327,26 +329,23 @@ struct Statement *parse_statement(struct Parser *parser, struct TokenData *token
         stmt->tag = GExpression;
         stmt->expr = parse_expression(parser, tokens, 0);
     }else if (token.tag == TokenOperator) {
+        if (token.token[0] == '{') {
+            parse_block(parser, tokens, 1);
+        }
         stmt->tag = GExpression;
         stmt->expr = parse_expression(parser, tokens, 0);
     }else if (token.tag == TokenNull) {
         stmt->tag = GNull;
     }
 
-    // consume the newline last
-    while (Ts_peek(tokens).tag == TokenLineSep) {
-        Ts_advance(tokens);
-    }
     return stmt;
 }
 
 /// Parse a block
-struct Block *parse_block(struct Parser *parser, struct TokenData *tokens) {
-    int flag = 0;
+struct Block *parse_block(struct Parser *parser, struct TokenData *tokens, const int inner) {
     int brace = 0;
     struct Token token = Ts_peek(tokens);
     if (token.tag == TokenOperator && token.token[0] == '{') {
-        flag = 1;
         Ts_advance(tokens);
         token = Ts_peek(tokens);
         if (token.tag == TokenLineSep) {
@@ -365,14 +364,17 @@ struct Block *parse_block(struct Parser *parser, struct TokenData *tokens) {
         if (stmt->tag == GNull || Ts_peek(tokens).tag == TokenNull) {
             break;
         }
-        token = Ts_peek(tokens);
+        while ((token = Ts_peek(tokens)).tag == TokenLineSep) {
+            Ts_advance(tokens);
+        }
+
         if (token.tag == TokenOperator && token.token[0] == '{') {
             brace++;
         }
         if (token.tag == TokenOperator && token.token[0] == '}') {
             brace--;
             Ts_advance(tokens); // consume the }
-            if (flag && brace == 0) {
+            if (inner && brace == 0) {
                 break;
             }
         }
@@ -385,7 +387,7 @@ struct Block *parse_block(struct Parser *parser, struct TokenData *tokens) {
 /// Parse a file
 void parse_file(struct Parser *parser, struct TokenData *tokens) {
     // free tokens
-    struct Block *block = parse_block(parser, tokens);
+    struct Block *block = parse_block(parser, tokens, 0);
     if (parser->error == Running) {
         parser->error = Success;
     }

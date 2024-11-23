@@ -2,6 +2,7 @@
 # include "tokenizer.c"
 # include "parser.c"
 # include "interpreter.c"
+# include "display.c"
 
 struct WinzigCalc {
     struct TokenData *tokens;
@@ -83,6 +84,7 @@ void winzig_code(struct WinzigCalc *calc, char* code) {
         // printf("Interpret error: %d\n", calc->interpreter->error); // reported error inside.
         return;
     }
+    print_Block(calc->parser->result_block);
 }
 
 void winzig_file(struct WinzigCalc *calc, char* filename) {
