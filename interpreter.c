@@ -20,7 +20,7 @@
 * unary:        +, -, !, ~
 *
 * Known grammar:
-* Define a function: fn <Function_Name>(<args...>){}; // MORE implement later
+* Define a function: fn <Function_Name>(<args...>){}; // IMPL implement later
 *
 * Known keywords:
 * if, else, while, return
@@ -29,7 +29,7 @@
 int string_hash(const char* str) {
     int hash = 5381;
     while (*str) {
-        hash = (hash * 31 + *str) % 65536;
+        hash = (hash * 31 + *str) % VAR_HASH_SIZE;
         str++;
     }
     return hash;
@@ -126,7 +126,7 @@ long double interpret_Expression(struct Interpreter *interpreter, struct Express
             return calc(interpreter, interpret_Expression(interpreter, expr2->lhs), interpret_Expression(interpreter, expr2->rhs), expr2->op);
         }
     }
-    // MORE: implement other tags
+    // IMPL: implement other tags
     report_error(interpreter->error, RuntimeError, "Unknown expression tag");
     return 0;
 }

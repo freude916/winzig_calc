@@ -5,6 +5,7 @@
 
 long double my_print(struct Interpreter *interpreter, const long double x) {
     return (long double) printf("%Lf\n", x);
+    return 0.0;
 }
 
 long double my_input(struct Interpreter *interpreter, const long double _) {
@@ -29,6 +30,23 @@ long double my_input(struct Interpreter *interpreter, const long double _) {
     return x;
 }
 
+long double my_exit(struct Interpreter *interpreter, const long double _) {
+    interpreter -> error = KeyboardInterrupt;
+    return 0.0;
+}
+
+long double sign(struct Interpreter *interpreter, const long double x) {
+    return x > 0 ? 1.0 : (x < 0 ? -1.0 : 0.0);
+}
+
+long double boolean(struct Interpreter *interpreter, const long double x) {
+    return x > 0.0 ? 1.0 : 0.0;
+}
+
+long double random(struct Interpreter *interpreter, const long double _) {
+    return rand() / (long double) RAND_MAX;
+}
+
 # define quick_my(name, func) long double my_##name(struct Interpreter *interpreter, const long double x) { return func(x); }
 quick_my(abs, fabsl)
 quick_my(sin, sinl)
@@ -44,6 +62,7 @@ quick_my(exp, expl)
 quick_my(ceil, ceill)
 quick_my(floor, floorl)
 quick_my(round, roundl)
+
 
 /**
 * Provide built-in function with name
@@ -67,5 +86,9 @@ d2dFunc get_func(const char *name) {
     check("round", my_round);
     check("print", my_print);
     check("input", my_input);
+    check("sign", sign);
+    check("boolean", boolean);
+    check("random", random);
+    check("exit", my_exit);
     return nullptr;
 }

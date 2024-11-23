@@ -6,7 +6,7 @@
 #define MAX_TOKEN_LEN 256
 #define STACK_SIZE 256
 /// in fact, hash set leads its capacity down to 256
-#define MAX_VARIABLES 65536
+#define VAR_HASH_SIZE 65536
 #define eps 1e-9
 
 /// basic
@@ -216,9 +216,9 @@ void Statement_delete(struct Statement *stmt);
 
 int operator_priority(const char* op);
 void parse_file(struct Parser *parser, struct TokenData* tokens); // free tokens
-struct Block* parse_block(struct Parser *parser, struct TokenData* tokens); // read from { to } or GNull
+struct Block* parse_block(struct Parser *parser, struct TokenData* tokens, int inner); // read from { to } or GNull
 struct Statement* parse_statement(struct Parser *parser, struct TokenData* tokens); // read until TokenNewline
-struct Expression* parse_expression(struct Parser *parser, struct TokenData* tokens, const int brace_flag); // read until TokenNewline
+struct Expression* parse_expression(struct Parser *parser, struct TokenData* tokens, int inner); // read until TokenNewline
 // struct Expression* parse_brace(struct TokenData* tokens); // read from ( to )
 
 /// end of parser ------------------------------------------------------------------------------------
@@ -226,7 +226,7 @@ struct Expression* parse_expression(struct Parser *parser, struct TokenData* tok
 
 /// interpreter
 struct Interpreter {
-    long double variables[65536]; // hash set, except to save 256 elements
+    long double variables[VAR_HASH_SIZE]; // hash set, except to save 256 elements
     enum Error error; // 0 for no err, 3 for runtime error
 };
 

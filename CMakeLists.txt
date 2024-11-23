@@ -8,4 +8,5 @@ if (${CMAKE_BUILD_TYPE} MATCHES “Debug”)
 endif ()
 
 link_libraries(m)
+# add_executable(null parser.c)
 add_executable(calc main.c)
