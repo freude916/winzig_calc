@@ -9,4 +9,4 @@ endif ()
 
 link_libraries(m)
 # add_executable(null parser.c)
-add_executable(calc main.c)
+add_executable(calc main.c base.c tokenizer.c parser.c interpreter.c winzig_calc.c)

@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "winzig_calc.c"
+#include "winzig_calc.h"
 // A Expression Calculator
 // can eval +-*/(), math function call, variable, assignment, simple loop, if-else, function definition and call
 

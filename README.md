@@ -14,7 +14,7 @@ Feel free to pull request or issue.
 
 ## How to use
 
-You can simply use `winzig_ez_main(argc, argv)` in `winzig_calc.c` as a repl.
+You can simply use `winzig_ez_main(argc, argv)` in `winzig_calc.c` as a repl. Start it and input the allowed expression syntax directly.
 
 Or you can initialize a `WinzigCalc` object and use `winzig_code` to evaluate a sourcecode.
 

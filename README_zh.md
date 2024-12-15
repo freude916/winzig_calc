@@ -14,7 +14,7 @@
 
 ## 食用方法
 
-简单地使用 `winzig_calc.c` 里的 `winzig_ez_main(argc, argv)` 作为一个 repl。
+简单地使用 `winzig_calc.c` 里的 `winzig_ez_main(argc, argv)` 作为一个 repl，启动后直接在其中输入下面允许的表达式语法即可。
 
 或者你可以初始化一个 `WinzigCalc` 对象，使用 `winzig_code` 来解析微算代码。
 
@@ -34,17 +34,19 @@
 
 ## 语法
 
+下面我们使用 EBNF 表示微算的语法。
+
 ### 语句
 
 ```
-<expr>;
+<expr>[;]
 ```
 分号是可选的，但是建议加上。和Rust等不同，分号不会将表达式的值丢弃。
 
 ### 赋值
 
 ```
-<name> = <expr>;
+<Assignment> ::= <name> "=" <expr>
 ```
 
 给变量赋值。变量名只能是字母和数字的组合，不能以数字开头。
@@ -56,7 +58,8 @@
 ### 表达式
 
 ```
-<expr> ::= <term> | <term> <addop> <expr>
+<term> ::= <variable> | <number>
+<expr> ::= <term> | <term> <op> <expr> | (<expr>)
 ```
 
 注意，我们没有一元运算符。

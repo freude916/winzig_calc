@@ -1,15 +1,12 @@
 # include <stdio.h>
-# include "tokenizer.c"
-# include "parser.c"
-# include "interpreter.c"
-# include "display.c"
+# include "tokenizer.h"
+# include "parser.h"
+# include "interpreter.h"
+# include "winzig_calc.h"
 
-struct WinzigCalc {
-    struct TokenData *tokens;
-    struct Parser *parser;
-    struct Interpreter *interpreter;
-    enum Error error;
-};
+#include <stdlib.h>
+#include <string.h>
+
 
 struct WinzigCalc *WinzigCalc_create() {
     struct WinzigCalc *calc = malloc(sizeof(struct WinzigCalc));
@@ -44,19 +41,18 @@ void winzig_inline(struct WinzigCalc *calc) {
     }
 
     tokenize(calc->tokens, buf);
-    calc -> error = calc->tokens->error;
+    calc->error = calc->tokens->error;
     if (calc->error != Success) return;
 
     parse_file(calc->parser, calc->tokens);
-    calc -> error = calc->parser->error;
+    calc->error = calc->parser->error;
     if (calc->error != Success) return;
 
     long double result = interpret_file(calc->interpreter, calc->parser->result_block);
-    calc -> error = calc->interpreter->error;
+    calc->error = calc->interpreter->error;
     if (calc->error != Success) return;
 
     printf("%Lf\n", result);
-
 }
 
 void winzig_repl(struct WinzigCalc *calc) {
@@ -68,7 +64,7 @@ void winzig_repl(struct WinzigCalc *calc) {
     }
 }
 
-void winzig_code(struct WinzigCalc *calc, char* code) {
+void winzig_code(struct WinzigCalc *calc, char *code) {
     tokenize(calc->tokens, code);
     if (calc->tokens->error != Success) {
         // printf("Tokenize error: %d\n", calc->tokens->error); // reported error inside.
@@ -87,7 +83,7 @@ void winzig_code(struct WinzigCalc *calc, char* code) {
     print_Block(calc->parser->result_block);
 }
 
-void winzig_file(struct WinzigCalc *calc, char* filename) {
+void winzig_file(struct WinzigCalc *calc, char *filename) {
     FILE *fp = fopen(filename, "r");
     if (!fp) {
         printf("Cannot open file %s\n", filename);

@@ -1,11 +1,9 @@
-# pragma once
-# ifndef TOKENIZER_H
-# define TOKENIZER_H
 # include <stdio.h>
 # include <stdlib.h>
 # include <string.h>
 
-# include "defs.h"
+# include "base.h"
+# include "tokenizer.h"
 
 
 /// TokenData.constructor
@@ -34,7 +32,7 @@ void Ts_push(struct TokenData *tokens, const enum DataTag tag, const char *const
     }
     if (tokens->count >= tokens->size) {
         tokens->size *= 2;
-        void* new_memory = realloc(tokens->tokens, sizeof(struct Token) * tokens->size);
+        void *new_memory = realloc(tokens->tokens, sizeof(struct Token) * tokens->size);
         if (!new_memory) {
             panic("out of memory!", 1);
         }
@@ -56,7 +54,7 @@ void Ts_end(struct TokenData *tokens) {
     //     panic("out of memory!", 1);
     // }
     // tokens->tokens = new_memory;
-    if (tokens-> error == Running) {
+    if (tokens->error == Running) {
         tokens->error = Success;
     }
 }
@@ -212,11 +210,10 @@ void tokenize(struct TokenData *tokens, const char *src) {
             break;
         }
     } while (*++src != '\0');
-    trace();
     PUSH_TOKEN(state);
     Ts_end(tokens);
     free(token);
 #undef PUSH_CHAR
 #undef PUSH_TOKEN
 }
-# endif
+

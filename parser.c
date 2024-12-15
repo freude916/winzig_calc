@@ -1,12 +1,110 @@
-# pragma once
-# ifndef PARSER_H
-# define PARSER_H
 # include <stdlib.h>
 # include <string.h>
-# include "mathfuns.c"
-# include "defs.h"
+# include "base.h"
+# include "tokenizer.h"
+# include "parser.h"
 
-struct Expression* Literal_create(const long double value) {
+
+# include <stdio.h>
+# include <stdlib.h>
+# include <math.h>
+# include <string.h>
+# include "base.h"
+# include "tokenizer.h"
+# include "parser.h"
+# include "interpreter.h"
+
+
+long double my_print(struct Interpreter *interpreter, const long double x) {
+    return (long double) printf("%Lf\n", x);
+    return 0.0;
+}
+
+long double my_input(struct Interpreter *interpreter, const long double _) {
+    /// read a long double from stdin
+    long double x;
+    char buf[256];
+    char *end = nullptr;
+    while (1) {
+        scanf("%s", buf);
+        if (buf[0] == 'Q' || buf[0] == 'q') {
+            interpreter->error = KeyboardInterrupt;
+            return 0.0;
+        }
+        x = strtold(buf, &end);
+        if (*end != '\0' || end == buf) {
+            printf("Not a valid number: %s\n", buf);
+            printf("Input Q to exit current program\n");
+        } else {
+            break;
+        }
+    }
+    return x;
+}
+
+long double my_exit(struct Interpreter *interpreter, const long double _) {
+    interpreter->error = KeyboardInterrupt;
+    return 0.0;
+}
+
+long double sign(struct Interpreter *interpreter, const long double x) {
+    return x > 0 ? 1.0 : (x < 0 ? -1.0 : 0.0);
+}
+
+long double boolean(struct Interpreter *interpreter, const long double x) {
+    return x > 0.0 ? 1.0 : 0.0;
+}
+
+long double my_random(struct Interpreter *interpreter, const long double _) {
+    return rand() / (long double) RAND_MAX;
+}
+
+# define quick_my(name, func) long double my_##name(struct Interpreter *interpreter, const long double x) { return func(x); }
+quick_my(abs, fabsl)
+quick_my(sin, sinl)
+quick_my(cos, cosl)
+quick_my(tan, tanl)
+quick_my(asin, asinl)
+quick_my(acos, acosl)
+quick_my(atan, atanl)
+quick_my(sqrt, sqrtl)
+quick_my(log, logl)
+quick_my(log10, log10l)
+quick_my(exp, expl)
+quick_my(ceil, ceill)
+quick_my(floor, floorl)
+quick_my(round, roundl)
+
+/**
+* Provide built-in function with name
+* now provided: abs, sin, cos, tan, asin, acos, atan, sqrt, log, log10, exp, ceil, floor, round, etc.
+*/
+long double (*get_func(const char *name))(struct Interpreter *, const long double) {
+# define check(label, func) if (strstr(name, label)) return &func;
+    check("abs", my_abs);
+    check("sin", my_sin);
+    check("cos", my_cos);
+    check("tan", my_tan);
+    check("asin", my_asin);
+    check("acos", my_acos);
+    check("atan", my_atan);
+    check("sqrt", my_sqrt);
+    check("log", my_log);
+    check("log10", my_log10);
+    check("exp", my_exp);
+    check("ceil", my_ceil);
+    check("floor", my_floor);
+    check("round", my_round);
+    check("print", my_print);
+    check("input", my_input);
+    check("sign", sign);
+    check("boolean", boolean);
+    check("random", my_random);
+    check("exit", my_exit);
+    return nullptr;
+}
+
+struct Expression *Literal_create(const long double value) {
     struct Expression *expression = malloc(sizeof(struct Expression));
     expression->tag = GLiteral;
     expression->literal = malloc(sizeof(struct Literal));
@@ -14,7 +112,7 @@ struct Expression* Literal_create(const long double value) {
     return expression;
 }
 
-struct Expression* Identifier_create(const char *name) {
+struct Expression *Identifier_create(const char *name) {
     struct Expression *expression = malloc(sizeof(struct Expression));
     expression->tag = GIdentifier;
     expression->identifier = malloc(sizeof(struct Identifier));
@@ -23,7 +121,7 @@ struct Expression* Identifier_create(const char *name) {
     return expression;
 }
 
-struct Expression* Expr2_create(struct Expression *lhs, struct Expression *rhs, const char *op) {
+struct Expression *Expr2_create(struct Expression *lhs, struct Expression *rhs, const char *op) {
     struct Expression *expression = malloc(sizeof(struct Expression));
     expression->tag = GExpr2;
     expression->expr2 = malloc(sizeof(struct Expr2));
@@ -34,7 +132,7 @@ struct Expression* Expr2_create(struct Expression *lhs, struct Expression *rhs, 
     return expression;
 }
 
-struct Expression* Builtin_create(const char *name, struct Expression *expr) {
+struct Expression *Builtin_create(const char *name, struct Expression *expr) {
     struct Expression *expression = malloc(sizeof(struct Expression));
     expression->tag = GBuiltin;
     expression->builtin = malloc(sizeof(struct Builtin));
@@ -121,7 +219,7 @@ void Block_delete(struct Block *block) {
     free(block);
 }
 
-struct Parser* Parser_create() {
+struct Parser *Parser_create() {
     struct Parser *parser = malloc(sizeof(struct Parser));
     parser->error = Running;
     return parser;
@@ -218,8 +316,7 @@ struct Expression *parse_expression(struct Parser *parser, struct TokenData *tok
     }else{ \
         report_error(parser->error, UnexpectedEnd, "expr: unexpected end"); \
     break; \
-} \
-
+}
 # define OpPush(op) if (op_top < STACK_SIZE) strcpy(ops[op_top++], op); else report_error(parser->error, TooComplexGrammar, "too complex expression")
 # define OpPop(op) \
     if (op_top > 0){ \
@@ -228,8 +325,7 @@ struct Expression *parse_expression(struct Parser *parser, struct TokenData *tok
     }else{ \
         report_error(parser->error, UnexpectedEnd, "op: unexpected end"); \
         break; \
-    } \
-
+    }
 # define calc_once() {\
     struct Expression *expression = malloc(sizeof(struct Expression));\
     expression->tag = GExpr2;\
@@ -237,8 +333,7 @@ struct Expression *parse_expression(struct Parser *parser, struct TokenData *tok
     EPop2(expression->expr2->lhs, expression->expr2->rhs);\
     OpPop(expression->expr2->op);\
     EPush(expression);\
-    }\
-
+    }
     if (token.tag == TokenNull) {
         struct Expression *result = malloc(sizeof(struct Expression));
         result->tag = GNull;
@@ -254,7 +349,7 @@ struct Expression *parse_expression(struct Parser *parser, struct TokenData *tok
             // Tell if it is function call or variable
             if (*Ts_peek(tokens).token == '(') {
                 // a function call
-                struct Expression* expression = Builtin_create(token.token, parse_expression(parser, tokens, 1));
+                struct Expression *expression = Builtin_create(token.token, parse_expression(parser, tokens, 1));
                 EPush(expression);
             } else {
                 // a variable
@@ -269,16 +364,15 @@ struct Expression *parse_expression(struct Parser *parser, struct TokenData *tok
                 // 1: at least one ( in stack
                 // op_top--; // wrong, didn't push (
                 if (brace_flag && brace == 0) break;
-            } else if  (token.token[0] == '}'){
+            } else if (token.token[0] == '}') {
                 break;
-            }else {
+            } else {
                 while (op_top > 0 && operator_priority(ops[op_top - 1]) >= operator_priority(token.token)) calc_once();
                 OpPush(token.token);
             }
         }
         token = Ts_pop(tokens);
     }
-    trace();
     while (op_top > 0) {
         calc_once();
     }
@@ -301,12 +395,12 @@ struct Statement *parse_statement(struct Parser *parser, struct TokenData *token
             Ts_pop(tokens);
             stmt->tag = GIf;
             stmt->if_stmt = malloc(sizeof(struct If));
-            stmt->if_stmt->cond = parse_expression(parser,tokens, 1);
-            stmt->if_stmt->then_block = parse_block(parser,tokens, 1);
+            stmt->if_stmt->cond = parse_expression(parser, tokens, 1);
+            stmt->if_stmt->then_block = parse_block(parser, tokens, 1);
             const struct Token is_else = Ts_peek(tokens);
             if (is_else.tag == TokenWord && strstr(is_else.token, "else")) {
                 Ts_advance(tokens);
-                stmt->if_stmt->else_block = parse_block(parser,tokens, 1);
+                stmt->if_stmt->else_block = parse_block(parser, tokens, 1);
             } else {
                 stmt->if_stmt->else_block = malloc(sizeof(struct Block));
                 stmt->if_stmt->else_block->stmts = malloc(sizeof(struct Statement *));
@@ -325,16 +419,16 @@ struct Statement *parse_statement(struct Parser *parser, struct TokenData *token
             stmt->tag = GExpression;
             stmt->expr = parse_expression(parser, tokens, 0);
         }
-    }else if (token.tag == TokenNumber){
+    } else if (token.tag == TokenNumber) {
         stmt->tag = GExpression;
         stmt->expr = parse_expression(parser, tokens, 0);
-    }else if (token.tag == TokenOperator) {
+    } else if (token.tag == TokenOperator) {
         if (token.token[0] == '{') {
             parse_block(parser, tokens, 1);
         }
         stmt->tag = GExpression;
         stmt->expr = parse_expression(parser, tokens, 0);
-    }else if (token.tag == TokenNull) {
+    } else if (token.tag == TokenNull) {
         stmt->tag = GNull;
     }
 
@@ -405,4 +499,61 @@ void Parser_refresh(struct Parser *parser) {
     Block_delete(parser->result_block);
     parser->result_block = nullptr;
 }
-# endif
+
+void print_Expression(const struct Expression *expression) {
+    switch (expression->tag) {
+        case GLiteral:
+            printf("%Lf", expression->literal->value);
+            break;
+        case GIdentifier:
+            printf("%s", expression->identifier->name);
+            break;
+        case GExpr2:
+            printf("(");
+            print_Expression(expression->expr2->lhs);
+            printf(" %s ", expression->expr2->op);
+            print_Expression(expression->expr2->rhs);
+            printf(")");
+            break;
+        case GBuiltin:
+            printf("%s(", expression->builtin->name);
+            print_Expression(expression->builtin->expr);
+            printf(")");
+            break;
+        default:
+            printf("<unknown>");
+    }
+}
+
+void print_Statement(const struct Statement *statement) {
+    if (statement->tag == GExpression) {
+        print_Expression(statement->expr);
+        printf(";\n");
+        return;
+    }
+    if (statement->tag == GIf) {
+        printf("if");
+        print_Expression(statement->if_stmt->cond);
+        printf("{\n");
+        print_Block(statement->if_stmt->then_block);
+        printf("} else {\n");
+        print_Block(statement->if_stmt->else_block);
+        printf("}\n");
+        return;
+    }
+    if (statement->tag == GWhile) {
+        printf("while");
+        print_Expression(statement->while_stmt->cond);
+        printf("{\n");
+        print_Block(statement->while_stmt->block);
+        printf("}\n");
+        return;
+    }
+    printf("<unknown>");
+}
+
+void print_Block(const struct Block *block) {
+    for (int i = 0; block->stmts[i]->tag != GNull; i++) {
+        print_Statement(block->stmts[i]);
+    }
+}
